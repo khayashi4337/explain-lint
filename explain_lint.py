@@ -51,11 +51,8 @@ STRIP = [
     re.compile(r"!\[[^\]]*\]\([^)]*\)"),
     re.compile(r"https?://\S+|10\.\d{4,}/\S+"),
 ]
-LEDGER_ROW = re.compile(
-    r"^\|\s*(?P<term>[^|]+?)\s*\|\s*(?P<category>[^|]*?)\s*\|"
-    r"\s*(?P<first_seen>[^|]*?)\s*\|\s*(?P<hash>[0-9a-f]{8})\s*\|"
-    r"\s*(?P<explained>[^|]*?)\s*\|\s*(?P<notes>[^|]*?)\s*\|"
-)
+HASH_RE = re.compile(r"^[0-9a-f]{8}$")
+PIPE_SPLIT = re.compile(r"(?<!\\)\|")  # split a table row on UNescaped pipes only
 COLS = ["term", "category", "first_seen", "hash", "explained", "notes"]
 DEFAULT_PREAMBLE = (
     "# explain-lint ledger\n\n"
@@ -135,6 +132,21 @@ def get_context(term, paths, window=2, **scan_kw):
 
 
 # ------------------------------------------------------------------ core: ledger
+def _split_row(line):
+    """Split a Markdown table row into unescaped cell values, or None if not a row.
+
+    Splits on UNescaped `|` (so `\\|` inside a cell stays put), then restores
+    `\\|` -> `|`. This is the read side of write_ledger's escaping — the two must
+    stay symmetric (ISSUE-02: an escaped pipe used to break parsing and drop the
+    whole row).
+    """
+    line = line.rstrip()
+    if not (line.startswith("|") and line.endswith("|")):
+        return None
+    parts = PIPE_SPLIT.split(line)[1:-1]
+    return [p.strip().replace(r"\|", "|") for p in parts]
+
+
 def read_ledger(path):
     """Return (preamble_text, ordered_rows). rows are dicts keyed by COLS."""
     if not os.path.exists(path):
@@ -143,13 +155,15 @@ def read_ledger(path):
         raw = f.read()
     rows, table_started, preamble_lines = [], False, []
     for line in raw.split("\n"):
-        m = LEDGER_ROW.match(line.rstrip())
-        if m and m.group("term") not in ("term", ":---", "---"):
-            rows.append({c: m.group(c) for c in COLS})
+        cells = _split_row(line)
+        if cells and len(cells) == len(COLS) and HASH_RE.match(cells[3]):
+            rows.append(dict(zip(COLS, cells)))
             table_started = True
-        elif not table_started and not re.match(r"^\|\s*term\s*\|", line) \
-                and not re.match(r"^\|\s*[-:| ]+\|?\s*$", line):
-            preamble_lines.append(line)
+        elif not table_started:
+            is_header = cells == COLS
+            is_sep = bool(cells) and all(c and set(c) <= set("-: ") for c in cells)
+            if not (is_header or is_sep):
+                preamble_lines.append(line)
     preamble = "\n".join(preamble_lines).rstrip("\n") + "\n\n"
     return (preamble if preamble.strip() else DEFAULT_PREAMBLE), rows
 
@@ -160,7 +174,10 @@ def index(rows):
 
 def write_ledger(path, preamble, rows):
     def esc(v):
-        return (v or "").replace("|", r"\|")
+        # A table row is one line, so newlines are collapsed to spaces (lossy,
+        # intentional); pipes are then escaped so the value round-trips through
+        # read_ledger's _split_row (ISSUE-02).
+        return (v or "").replace("\r", " ").replace("\n", " ").replace("|", r"\|")
     out = [preamble.rstrip("\n"), "",
            "| " + " | ".join(COLS) + " |",
            "|" + "|".join(["---"] * len(COLS)) + "|"]
