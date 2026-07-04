@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "explain-lint"
+version = "0.1.0"
+description = "A linter for unexplained terms in prose — the machine core plus an MCP server for LLM-driven judgment."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Kuniyuki Hayashi" }]
+keywords = ["linter", "prose", "documentation", "mcp", "llm", "terminology", "explainability"]
+
+# The core (explain_lint.py) has ZERO dependencies. The MCP server needs `mcp`.
+dependencies = []
+
+[project.optional-dependencies]
+mcp = ["mcp>=1.0"]
+
+[project.scripts]
+explain-lint = "explain_lint:main"
+
+[tool.setuptools]
+py-modules = ["explain_lint", "explain_lint_mcp"]

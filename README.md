@@ -106,12 +106,53 @@ grep '| no |' doc.md.terms.md
   offline, dependency-free, and auditable; the (fuzzy, model-dependent) judgment
   stays a pluggable step you control.
 
+## Use it from an AI assistant (MCP)
+
+The judgment step *is* an AI task — but a cheap one, because the differential
+core hands the assistant only the NEW/MOVED terms, not the whole document. The
+included **MCP server** (`explain_lint_mcp.py`) is the seam: connect an
+assistant (Claude, etc.) and it can run the whole loop itself.
+
+```
+pip install mcp        # the core needs nothing; the server needs this
+```
+
+Register it (Claude Code / Claude Desktop `mcpServers` config):
+
+```json
+{
+  "mcpServers": {
+    "explain-lint": {
+      "command": "python",
+      "args": ["/absolute/path/to/explain-lint/explain_lint_mcp.py"]
+    }
+  }
+}
+```
+
+Tools the assistant sees:
+
+| tool | purpose |
+|---|---|
+| `lint_report(paths, ledger)` | the diff: NEW / MOVED / GONE terms |
+| `get_term_context(term, paths, window)` | first occurrence + surrounding lines, to judge |
+| `record_judgment(ledger, term, category, explained, notes, paths)` | write the verdict back |
+| `list_gaps(ledger)` | the finding: terms marked `explained = no` |
+| `sync_ledger(paths, ledger)` | refresh line numbers after pure drift |
+| `dump_terms(paths)` | every first occurrence (seed a ledger) |
+
+The loop the assistant runs: **`lint_report`** → for each NEW term
+**`get_term_context`** → judge → **`record_judgment`** → **`list_gaps`** to
+report the unexplained terms to you. The server holds no model and makes no API
+calls — the intelligence is whatever client connects to it.
+
 ## Roadmap
 
-This is the MVP — the deterministic core. Envisioned next:
+Done: the deterministic core (CLI + importable functions) and the **MCP server**
+that lets an assistant drive the judgment loop. Envisioned next:
 
-- An optional judgment plugin (LLM API) that fills `category` / `explained` for
-  the `NEW` list automatically.
+- A one-call convenience tool that runs the whole loop server-side when the
+  client passes it an LLM callback.
 - Richer term extraction (multi-word phrases; language packs beyond kana+Latin).
 - A CI action (fail a PR when a new unexplained term lands in docs).
 - An editor integration (flag the gap as you write).
