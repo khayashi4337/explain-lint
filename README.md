@@ -158,6 +158,21 @@ that lets an assistant drive the judgment loop. Envisioned next:
 - A CI action (fail a PR when a new unexplained term lands in docs).
 - An editor integration (flag the gap as you write).
 
+## Development
+
+The core has no runtime dependencies; the tests need only `pytest`:
+
+```
+pip install pytest
+python -m pytest
+```
+
+The suite (`tests/`) covers the differential lifecycle (NEW/MOVED/GONE and that
+a re-judged MOVED clears), ledger round-tripping through special characters,
+term extraction and exclusions, `sync` line-drift vs content change, and that
+the CLI survives a non-UTF-8 console. Each is also a regression test for a
+specific past bug — see `issues/`.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
