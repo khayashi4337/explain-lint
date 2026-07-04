@@ -270,6 +270,14 @@ def sync_linenumbers(paths, ledger_path, **scan_kw):
 
 # ------------------------------------------------------------------ CLI
 def main():
+    # Survive a non-UTF-8 console (e.g. Windows cp932): report/dump output uses
+    # `—` and `§`, which would raise UnicodeEncodeError out-of-box (ISSUE-03).
+    # Confined to the CLI entry point; the core functions never print.
+    for _stream in (sys.stdout, sys.stderr):
+        try:
+            _stream.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
+        except (AttributeError, ValueError):
+            pass  # already-wrapped or non-reconfigurable stream (e.g. test capture)
     ap = argparse.ArgumentParser(prog="explain-lint", description="Lint prose for unexplained terms.")
     ap.add_argument("inputs", nargs="+", help="Markdown/text file(s), in reading order")
     ap.add_argument("--ledger", help="ledger file (default: <first-input>.terms.md)")
