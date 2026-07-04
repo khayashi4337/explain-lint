@@ -204,6 +204,14 @@ def record_judgment(ledger_path, term, category=None, explained=None, notes=None
             row["explained"] = explained
         if notes is not None:
             row["notes"] = notes
+        # Re-sync position when the caller supplies paths, so judging a MOVED
+        # term also acknowledges its new first-occurrence and clears MOVED
+        # (ISSUE-01: without this the term stayed MOVED forever).
+        if paths:
+            occ = scan(paths, **scan_kw).get(term)
+            if occ:
+                row["first_seen"] = fmt_seen(occ["file"], occ["line"], occ["heading"])
+                row["hash"] = occ["hash"]
         action = "updated"
     write_ledger(ledger_path, preamble, rows)
     return action
