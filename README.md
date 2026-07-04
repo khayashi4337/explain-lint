@@ -93,7 +93,8 @@ grep '| no |' doc.md.terms.md
 **Does (the machine-detection core):**
 
 - Extract candidate terms: katakana runs (`--min-kana`, default 3) and/or Latin
-  words. Toggle with `--no-kana` / `--no-latin`.
+  words and abbreviations like `AT&T` / `R&D` / `Peacock-Hall` (`--min-latin`,
+  default 3). Toggle with `--no-kana` / `--no-latin`.
 - Record each term's first occurrence: file, line, nearest heading, line-hash.
 - Ignore fenced code, inline code, `$math$`, `$$math$$`, image tags, and URLs.
 - Diff against the ledger → `NEW` / `MOVED` / `GONE`; exit 1 on NEW or MOVED.

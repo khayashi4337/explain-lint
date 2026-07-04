@@ -30,7 +30,7 @@ CLI
       --dump        print every term's first occurrence (to seed a ledger)
       --sync        rewrite ledger line numbers for hash-matched terms
       --gaps        list ledger terms marked explained=no
-      --no-kana / --no-latin / --min-kana N   tune extraction
+      --no-kana / --no-latin / --min-kana N / --min-latin N   tune extraction
 
 LICENSE  MIT. Spun out of the "観測の窓" paper project (2026).
 """
@@ -41,8 +41,18 @@ import re
 import sys
 
 # ------------------------------------------------------------------ patterns
+# Extraction policy, in one place (ISSUE-04). min lengths are the single source
+# of truth for both the scan() defaults and the CLI defaults.
+DEFAULT_MIN_KANA = 3   # a katakana run must be at least this long to count
+DEFAULT_MIN_LATIN = 3  # a Latin word/abbreviation must be at least this long
+
 KATAKANA = re.compile(r"[ァ-ヴー]+")
-LATIN = re.compile(r"\b[A-Z][A-Za-z]{2,}(?:[-&][A-Z][A-Za-z]+)*\b")
+# A capitalized word, optionally joined by -/& to further capitalized parts, so
+# `AT&T`, `R&D`, `Peacock-Hall`, `Runge-Kutta` are each one term. Individual
+# parts may be a single letter (for `AT&T`); the whole match is length-filtered
+# by min_latin, which drops stray "A"/"I" while letting short abbreviations
+# through. Capitalized-only by design (lowercase jargon is out of scope here).
+LATIN = re.compile(r"\b[A-Z][A-Za-z]*(?:[-&][A-Z][A-Za-z]*)*\b")
 HEADING = re.compile(r"^(#{1,6})\s+(.*)$")
 STRIP = [
     re.compile(r"\$\$.*?\$\$", re.DOTALL),
@@ -76,7 +86,8 @@ def fmt_seen(fname, line, heading):
 
 
 # ------------------------------------------------------------------ core: scan
-def scan(paths, use_kana=True, use_latin=True, min_kana=3):
+def scan(paths, use_kana=True, use_latin=True, min_kana=DEFAULT_MIN_KANA,
+         min_latin=DEFAULT_MIN_LATIN):
     """Return {term: {file,line,heading,hash,text}} for each term's first occurrence."""
     first = {}
     for path in paths:
@@ -100,7 +111,7 @@ def scan(paths, use_kana=True, use_latin=True, min_kana=3):
             if use_kana:
                 terms |= {t for t in KATAKANA.findall(clean) if len(t) >= min_kana}
             if use_latin:
-                terms |= set(LATIN.findall(clean))
+                terms |= {t for t in LATIN.findall(clean) if len(t) >= min_latin}
             for t in terms:
                 if t not in first:
                     first[t] = {"file": fname, "line": i, "heading": heading,
@@ -287,11 +298,13 @@ def main():
     mode.add_argument("--gaps", action="store_true", help="list terms marked explained=no")
     ap.add_argument("--no-kana", action="store_true")
     ap.add_argument("--no-latin", action="store_true")
-    ap.add_argument("--min-kana", type=int, default=3)
+    ap.add_argument("--min-kana", type=int, default=DEFAULT_MIN_KANA)
+    ap.add_argument("--min-latin", type=int, default=DEFAULT_MIN_LATIN)
     args = ap.parse_args()
 
     ledger_path = args.ledger or (args.inputs[0] + ".terms.md")
-    kw = dict(use_kana=not args.no_kana, use_latin=not args.no_latin, min_kana=args.min_kana)
+    kw = dict(use_kana=not args.no_kana, use_latin=not args.no_latin,
+              min_kana=args.min_kana, min_latin=args.min_latin)
 
     if args.dump:
         first = scan(args.inputs, **kw)
