@@ -34,23 +34,39 @@ def _split_row(line: str) -> Optional[list]:
     return [p.strip().replace(r"\|", "|") for p in parts]
 
 
+def _is_separator(cells) -> bool:
+    return (bool(cells) and len(cells) == len(COLS)
+            and all(c and set(c) <= set("-: ") for c in cells))
+
+
 def read_ledger(path: str):
-    """Return (preamble_text, ordered_rows). rows are dicts keyed by COLS."""
+    """Return (preamble_text, ordered_rows). rows are dicts keyed by COLS.
+
+    The real table is anchored at the LAST `COLS` header row immediately followed
+    by a `|---|` separator; everything before that header is preamble, and only
+    rows after that separator are data. Anchoring on the last header+separator
+    (write_ledger always appends exactly one) means an entire fake table skeleton
+    quoted in the preamble is left in the preamble — not leaked into the data and
+    not duplicated on round-trip (ISSUE-07). A ledger with no header+separator
+    yields zero rows (fail-safe: an ambiguous table is not guessed at).
+    """
     if not os.path.exists(path):
         return DEFAULT_PREAMBLE, []
     with open(path, encoding="utf-8") as f:
-        raw = f.read()
-    rows, table_started, preamble_lines = [], False, []
-    for line in raw.split("\n"):
-        cells = _split_row(line)
-        if cells and len(cells) == len(COLS) and HASH_RE.match(cells[3]):
-            rows.append(dict(zip(COLS, cells)))
-            table_started = True
-        elif not table_started:
-            is_header = cells == COLS
-            is_sep = bool(cells) and all(c and set(c) <= set("-: ") for c in cells)
-            if not (is_header or is_sep):
-                preamble_lines.append(line)
+        lines = f.read().split("\n")
+
+    header_idx = None
+    for i in range(len(lines) - 1):
+        if _split_row(lines[i]) == COLS and _is_separator(_split_row(lines[i + 1])):
+            header_idx = i  # keep the LAST such pair
+
+    rows, preamble_lines = [], lines
+    if header_idx is not None:
+        preamble_lines = lines[:header_idx]
+        for line in lines[header_idx + 2:]:  # skip header and separator
+            cells = _split_row(line)
+            if cells and len(cells) == len(COLS) and HASH_RE.match(cells[3]):
+                rows.append(dict(zip(COLS, cells)))
     preamble = "\n".join(preamble_lines).rstrip("\n") + "\n\n"
     return (preamble if preamble.strip() else DEFAULT_PREAMBLE), rows
 
