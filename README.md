@@ -38,29 +38,29 @@ Pure Python 3, no dependencies.
 
 ```
 git clone <this repo>
-python explain_lint.py your_doc.md
+python -m explain_lint your_doc.md
 ```
 
 ## Quick start
 
 ```bash
 # 1. See every term's first occurrence (seed material for a ledger)
-python explain_lint.py doc.md --dump
+python -m explain_lint doc.md --dump
 
 # 2. Build doc.md.terms.md (the ledger) — judge each term's category/explained
 #    (by hand, or hand the NEW list to an LLM). See format below.
 
 # 3. From now on, this is all you run. It stays silent until something changes:
-python explain_lint.py doc.md          # exit 0 = nothing new; exit 1 = NEW/MOVED
+python -m explain_lint doc.md          # exit 0 = nothing new; exit 1 = NEW/MOVED
 
 # After edits that only shift line numbers:
-python explain_lint.py doc.md --sync   # rewrite line numbers for unchanged terms
+python -m explain_lint doc.md --sync   # rewrite line numbers for unchanged terms
 ```
 
 Multiple files are read in order (useful for a book split into chapters):
 
 ```bash
-python explain_lint.py ch01.md ch02.md ch03.md --ledger book.terms.md
+python -m explain_lint ch01.md ch02.md ch03.md --ledger book.terms.md
 ```
 
 ## The ledger

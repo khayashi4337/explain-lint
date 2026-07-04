@@ -12,14 +12,15 @@ license = { text = "MIT" }
 authors = [{ name = "Kuniyuki Hayashi" }]
 keywords = ["linter", "prose", "documentation", "mcp", "llm", "terminology", "explainability"]
 
-# The core (explain_lint.py) has ZERO dependencies. The MCP server needs `mcp`.
+# The explain_lint core package has ZERO dependencies. The MCP server needs `mcp`.
 dependencies = []
 
 [project.optional-dependencies]
 mcp = ["mcp>=1.0"]
 
 [project.scripts]
-explain-lint = "explain_lint:main"
+explain-lint = "explain_lint.cli:main"
 
 [tool.setuptools]
-py-modules = ["explain_lint", "explain_lint_mcp"]
+packages = ["explain_lint"]
+py-modules = ["explain_lint_mcp"]

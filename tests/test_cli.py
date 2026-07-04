@@ -19,7 +19,7 @@ def _run(args, extra_env=None):
     env["PYTHONIOENCODING"] = "ascii"  # a console that cannot encode § or —
     if extra_env:
         env.update(extra_env)
-    return subprocess.run([sys.executable, "explain_lint.py", *args],
+    return subprocess.run([sys.executable, "-m", "explain_lint", *args],
                           cwd=REPO, capture_output=True, env=env)
 
 
