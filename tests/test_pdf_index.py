@@ -145,6 +145,38 @@ def test_pdf_sample_extract_terms():
         break
 
 
+def test_read_lines_returns_3tuple():
+    # _read_linesが(abs_line, line_text, page_num)の3タプルを返すこと。
+    if not _has_pypdf():
+        return
+    import explain_lint.extract as ext
+    lines = ext._read_lines(_PDF_SAMPLE)
+    assert len(lines) > 0
+    first = lines[0]
+    assert len(first) == 3
+    assert isinstance(first[0], int)  # abs_line
+    assert isinstance(first[1], str)  # line_text
+    assert isinstance(first[2], int)  # page_num
+    assert first[2] >= 1  # PDFのページ番号
+
+
+def test_read_lines_markdown_page_zero():
+    # Markdownの場合はpage_num=0。
+    import tempfile, os as _os
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False,
+                                     encoding="utf-8") as f:
+        f.write("# Head\n\nText.\n")
+        path = f.name
+    try:
+        import explain_lint.extract as ext
+        lines = ext._read_lines(path)
+        assert len(lines) == 4  # "# Head", "", "Text.", "" (末尾改行)
+        for _, _, page in lines:
+            assert page == 0
+    finally:
+        _os.unlink(path)
+
+
 def test_pdf_context_correct_lines():
     # ISSUE-14: get_context() がPDFで正しい行を返すこと。
     if not _has_pypdf():
