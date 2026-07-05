@@ -5,8 +5,9 @@ import re
 from typing import Optional, TypedDict
 
 from .patterns import (DEFAULT_MIN_KANA, DEFAULT_MIN_KANJI, DEFAULT_MIN_LATIN,
-                       HASH_LEN, HEADING, KANJI_KANA, KATAKANA, LATIN,
-                       MORPH_EXCLUDE_POS1, MORPH_STOPWORDS, MORPH_TARGET_POS, STRIP)
+                       HASH_LEN, HEADING, KANA_TRAILER, KANJI_KANA, KATAKANA,
+                       LATIN, MORPH_EXCLUDE_POS1, MORPH_STOPWORDS,
+                       MORPH_TARGET_POS, STRIP)
 
 
 class Occurrence(TypedDict):
@@ -66,11 +67,10 @@ def _morph_terms(text: str, min_kanji: int = DEFAULT_MIN_KANJI) -> set:
     if tok is None:
         # フォールバック: 正規表現で漢字・ひらがな連続を抽出
         # 末尾のひらがな（送り仮名・助詞・動詞尾部）をトリムして語幹を取り出す
-        _trailer = re.compile(r"[ぁ-ゟ]+$")
         terms = set()
         for t in KANJI_KANA.findall(text):
             # 末尾のひらがなを削除: 「固有値について」→「固有値」
-            trimmed = _trailer.sub("", t)
+            trimmed = KANA_TRAILER.sub("", t)
             if not trimmed:
                 continue  # ひらがなのみのマッチはスキップ
             if trimmed in MORPH_STOPWORDS:
@@ -97,11 +97,12 @@ def _morph_terms(text: str, min_kanji: int = DEFAULT_MIN_KANJI) -> set:
     return terms
 
 
-def _read_lines(path: str) -> "list[tuple[int, str]]":
-    """ファイルを読み込み、(絶対行番号, 行テキスト) のリストを返す。
+def _read_lines(path: str) -> "list[tuple[int, str, int]]":
+    """ファイルを読み込み、(絶対行番号, 行テキスト, ページ番号) のリストを返す。
 
     PDFファイルの場合はpypdfでページごとにテキストを抽出し、全ページを通した
-    連続行番号を割り当てる。Markdown/テキストファイルの場合は従来通り行番号を使う。
+    連続行番号を割り当てる。ページ番号はPDFのページ番号（1始まり）。
+    Markdown/テキストファイルの場合は従来通り行番号を使い、ページ番号は0。
     pypdfが未インストールでPDFが入力された場合は空リストを返す。
     ファイルが存在しない場合はFileNotFoundErrorを投げる。
     """
@@ -115,41 +116,19 @@ def _read_lines(path: str) -> "list[tuple[int, str]]":
         reader = PdfReader(path)
         result = []
         abs_line = 0
-        for page in reader.pages:
+        for page_num, page in enumerate(reader.pages, 1):
             text = page.extract_text() or ""
             for line in text.split("\n"):
                 abs_line += 1
-                result.append((abs_line, line))
+                result.append((abs_line, line, page_num))
         return result
     with open(path, encoding="utf-8") as f:
-        return [(i, line) for i, line in enumerate(f.read().split("\n"), 1)]
+        return [(i, line, 0) for i, line in enumerate(f.read().split("\n"), 1)]
 
 
 def _read_context_lines(path: str) -> "list[str]":
     """コンテキスト取得用にファイルを行リストとして返す（PDF含む）。"""
-    return [line for _, line in _read_lines(path)]
-
-
-def _build_page_map(path: str) -> "dict[int, int]":
-    """PDFの絶対行番号→ページ番号のマッピングを返す。Markdownの場合は空dict。
-
-    PDFでは行番号→ページ番号の対応が必要（fmt_seen で pN 形式にするため）。
-    """
-    if not path.lower().endswith(".pdf"):
-        return {}
-    try:
-        from pypdf import PdfReader
-    except ImportError:
-        return {}
-    reader = PdfReader(path)
-    page_map = {}
-    abs_line = 0
-    for page_num, page in enumerate(reader.pages, 1):
-        text = page.extract_text() or ""
-        for _ in text.split("\n"):
-            abs_line += 1
-            page_map[abs_line] = page_num
-    return page_map
+    return [line for _, line, _ in _read_lines(path)]
 
 
 def scan(paths, use_kana: bool = True, use_latin: bool = True,
@@ -169,11 +148,8 @@ def scan(paths, use_kana: bool = True, use_latin: bool = True,
     for path in paths:
         lines = _read_lines(path)
         fname = os.path.basename(path)
-        is_pdf = path.lower().endswith(".pdf")
-        if is_pdf:
-            page_map = _build_page_map(path)
         heading, in_code = "", False
-        for i, raw in lines:
+        for i, raw, page in lines:
             if raw.strip().startswith("```"):
                 in_code = not in_code
                 continue
@@ -192,7 +168,6 @@ def scan(paths, use_kana: bool = True, use_latin: bool = True,
                 terms |= {t for t in LATIN.findall(clean) if len(t) >= min_latin}
             if use_morph:
                 terms |= _morph_terms(clean, min_kanji=min_kanji)
-            page = page_map.get(i, 0) if is_pdf else 0
             for t in terms:
                 if t not in first:
                     first[t] = {"file": fname, "line": i, "page": page,
