@@ -64,3 +64,37 @@ def test_morph_does_not_break_kana_latin(tmp_path):
     assert "オブザーバブル" in t
     assert "Fourier" in t
     assert "量子力学" in t or "量子" in t
+
+
+# --- ISSUE-15: フォールバック形態素解析のノイズ削減 ---
+
+def test_fallback_does_not_extract_full_sentence():
+    # フォールバック時、文全体が1用語として抽出されないこと。
+    from explain_lint.extract import _morph_terms, _get_tokenizer
+    if _get_tokenizer() is not None:
+        return  # Janomeがインストールされている場合はスキップ
+    terms = _morph_terms("量子力学と固有値について議論する")
+    assert "量子力学と固有値について議論する" not in terms
+    assert "量子力学" in terms
+    assert "固有値" in terms
+
+
+def test_fallback_trims_trailing_hiragana():
+    # フォールバック時、末尾のひらがな（送り仮名・助詞）がトリムされること。
+    from explain_lint.extract import _morph_terms, _get_tokenizer
+    if _get_tokenizer() is not None:
+        return
+    terms = _morph_terms("非線形効果が観測された")
+    assert "非線形" in terms or "非線形効果" in terms
+    assert "観測" in terms
+    assert "観測された" not in terms
+
+
+def test_fallback_splits_at_single_hiragana():
+    # フォールバック時、1文字のひらがな（助詞）で分割されること。
+    from explain_lint.patterns import KANJI_KANA
+    result = KANJI_KANA.findall("量子力学と固有値")
+    assert "量子力学と固有値" not in result
+    # 助詞「と」で分割される
+    assert "量子力学" in result
+    assert "固有値" in result

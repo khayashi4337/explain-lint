@@ -65,7 +65,19 @@ def _morph_terms(text: str, min_kanji: int = DEFAULT_MIN_KANJI) -> set:
     tok = _get_tokenizer()
     if tok is None:
         # フォールバック: 正規表現で漢字・ひらがな連続を抽出
-        return {t for t in KANJI_KANA.findall(text) if len(t) >= min_kanji}
+        # 末尾のひらがな（送り仮名・助詞・動詞尾部）をトリムして語幹を取り出す
+        _trailer = re.compile(r"[ぁ-ゟ]+$")
+        terms = set()
+        for t in KANJI_KANA.findall(text):
+            # 末尾のひらがなを削除: 「固有値について」→「固有値」
+            trimmed = _trailer.sub("", t)
+            if not trimmed:
+                continue  # ひらがなのみのマッチはスキップ
+            if trimmed in MORPH_STOPWORDS:
+                continue
+            if len(trimmed) >= min_kanji:
+                terms.add(trimmed)
+        return terms
     terms = set()
     for token in tok.tokenize(text):
         pos = token.part_of_speech.split(",")
