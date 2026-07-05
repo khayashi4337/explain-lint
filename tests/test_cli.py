@@ -82,3 +82,32 @@ def test_lang_en_default(tmp_path):
     assert r.returncode in (0, 1)
     assert "terms" in out  # 英語メッセージ
     assert "件" not in out  # 日本語メッセージは含まれない
+
+
+# --- ISSUE-12: ファイル不在時のエラーハンドリング ---
+
+def test_file_not_found_error(tmp_path):
+    # 存在しないファイルを指定した場合、トレースバックではなくエラーメッセージ。
+    r = _run([str(tmp_path / "nonexistent.md"), "--dump"])
+    err = r.stderr.decode("utf-8", "replace")
+    assert r.returncode != 0
+    assert "file not found" in err
+    assert "Traceback" not in err
+
+
+def test_file_not_found_error_pdf(tmp_path):
+    # 存在しないPDFファイルを指定した場合もエラーメッセージ。
+    r = _run([str(tmp_path / "nonexistent.pdf"), "--dump"])
+    err = r.stderr.decode("utf-8", "replace")
+    assert r.returncode != 0
+    assert "file not found" in err
+    assert "Traceback" not in err
+
+
+def test_file_not_found_error_default_mode(tmp_path):
+    # デフォルトモードでもファイル不在時にエラーメッセージ。
+    r = _run([str(tmp_path / "nonexistent.md"), "--ledger", str(tmp_path / "l.md")])
+    err = r.stderr.decode("utf-8", "replace")
+    assert r.returncode != 0
+    assert "file not found" in err
+    assert "Traceback" not in err

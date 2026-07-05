@@ -102,8 +102,10 @@ def test_pdf_input_without_pypdf(tmp_path, monkeypatch):
     monkeypatch.delitem(_sys.modules, "pypdf", raising=False)
 
     import explain_lint.extract as ext
-    # 存在しないPDFパスでもpypdf未インストール時は空リストを返す
-    result = ext._read_lines("nonexistent.pdf")
+    # 存在するPDFファイル（空の内容）でpypdf未インストール時は空リストを返す
+    pdf_path = tmp_path / "test.pdf"
+    pdf_path.write_bytes(b"%PDF-1.4\n%%EOF\n")
+    result = ext._read_lines(str(pdf_path))
     assert result == []
 
 
