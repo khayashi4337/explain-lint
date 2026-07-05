@@ -1,9 +1,11 @@
-"""ISSUE-03 regression: the CLI must not crash on a non-UTF-8 console.
+"""ISSUE-03回帰テスト: 非UTF-8コンソールでCLIがクラッシュしないことを確認する。
 
-The report/dump output contains `—` (em-dash) and `§`. On a cp932/ascii console
-these raise UnicodeEncodeError and the tool dies out-of-box — masked during
-development because every manual run set PYTHONIOENCODING=utf-8. The CLI must
-reconfigure its own streams so it survives regardless of the console encoding.
+レポート/dump出力には `—`（emダッシュ）と `§` が含まれる。cp932/asciiコンソールでは
+UnicodeEncodeErrorが発生し、デフォルトでツールが異常終了する——開発中は毎回
+PYTHONIOENCODING=utf-8を手動設定していたため隠れていた。CLIは自身のストリームを
+再設定し、コンソールエンコーディングに関わらず生き残る必要がある。
+
+また --lang ja で日本語メッセージが正しく出力されることを確認する（i18nテスト）。
 """
 import os
 import subprocess
@@ -16,7 +18,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 def _run(args, extra_env=None):
     env = dict(os.environ)
-    env["PYTHONIOENCODING"] = "ascii"  # a console that cannot encode § or —
+    env["PYTHONIOENCODING"] = "ascii"  # § や — をエンコードできないコンソール
     if extra_env:
         env.update(extra_env)
     return subprocess.run([sys.executable, "-m", "explain_lint", *args],
@@ -36,7 +38,7 @@ def test_report_survives_ascii_console(tmp_path):
     r = _run([str(doc), "--ledger", str(tmp_path / "l.md")])
     out = _clean(r)
     assert r.returncode in (0, 1)
-    assert "NEW" in out  # the report actually printed its NEW section
+    assert "NEW" in out  # レポートが実際にNEWセクションを出力した
 
 
 def test_dump_survives_ascii_console(tmp_path):
@@ -48,7 +50,7 @@ def test_dump_survives_ascii_console(tmp_path):
 
 
 def test_gaps_survives_ascii_console(tmp_path):
-    # gaps output has both § (first_seen) and — (notes separator).
+    # gaps出力には §（first_seen）と —（notes区切り）の両方が含まれる。
     doc = tmp_path / "d.md"
     doc.write_text("# Head\n\nThe オブザーバブル here.\n", encoding="utf-8")
     ledger = tmp_path / "d.md.terms.md"
@@ -58,3 +60,25 @@ def test_gaps_survives_ascii_console(tmp_path):
     out = _clean(r)
     assert r.returncode == 0
     assert "オブザーバブル" in out
+
+
+def test_lang_ja_output(tmp_path):
+    # --lang ja で日本語メッセージが出力されることを確認する。
+    doc = tmp_path / "d.md"
+    doc.write_text("# Head\n\nThe オブザーバブル here.\n", encoding="utf-8")
+    r = _run([str(doc), "--ledger", str(tmp_path / "l.md"), "--lang", "ja"])
+    out = _clean(r)
+    assert r.returncode in (0, 1)
+    assert "用語" in out  # 日本語メッセージが含まれる
+    assert "件" in out   # 日本語メッセージが含まれる
+
+
+def test_lang_en_default(tmp_path):
+    # デフォルト（--lang なし）は英語メッセージ。
+    doc = tmp_path / "d.md"
+    doc.write_text("# Head\n\nThe オブザーバブル here.\n", encoding="utf-8")
+    r = _run([str(doc), "--ledger", str(tmp_path / "l.md")])
+    out = _clean(r)
+    assert r.returncode in (0, 1)
+    assert "terms" in out  # 英語メッセージ
+    assert "件" not in out  # 日本語メッセージは含まれない

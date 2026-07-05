@@ -1,8 +1,8 @@
-"""ISSUE-05: sync_linenumbers behaviour.
+"""ISSUE-05: sync_linenumbers の挙動。
 
-Pure line drift (same line text, new line number) is noise: sync rewrites the
-number so it stays quiet. A real content change (hash differs) is a MOVED and
-must NOT be silently synced — that needs a re-judgment (ISSUE-01).
+純粋な行ずれ（同じ行テキスト、新しい行番号）はノイズ: syncは番号を書き換え、
+静かに保つ。本当の内容変更（hash不一致）はMOVEDであり、サイレントに同期されては
+ならない——再判断が必要（ISSUE-01）。
 """
 import explain_lint as e
 
@@ -22,7 +22,7 @@ def test_sync_updates_line_on_pure_drift(tmp_path):
     _, rows = e.read_ledger(str(ledger))
     old_seen = e.index(rows)[TERM]["first_seen"]  # d.md:3 §H
 
-    # prepend blank lines: the term's line MOVES but its TEXT (hash) is identical
+    # 前に空行を追加: 用語の行は移動するがテキスト（hash）は同一
     doc.write_text(f"\n\n\n# H\n\nThe {TERM} here.\n", encoding="utf-8")
     n = e.sync_linenumbers([str(doc)], str(ledger))
 
@@ -30,7 +30,7 @@ def test_sync_updates_line_on_pure_drift(tmp_path):
     _, rows = e.read_ledger(str(ledger))
     new_seen = e.index(rows)[TERM]["first_seen"]
     assert new_seen != old_seen
-    assert new_seen.startswith("d.md:6")  # shifted down by 3 lines
+    assert new_seen.startswith("d.md:6")  # 3行下にずれた
 
 
 def test_sync_ignores_content_change(tmp_path):
@@ -39,18 +39,18 @@ def test_sync_ignores_content_change(tmp_path):
     old_hash = e.index(rows)[TERM]["hash"]
     old_seen = e.index(rows)[TERM]["first_seen"]
 
-    # Move the line (prepend) AND reword it. The line moved, so a naive sync
-    # would rewrite first_seen — but the hash changed, so the hash guard must
-    # skip it. Moving the line is what makes n==0 a real regression for the
-    # guard (a same-line reword would pass n==0 for the wrong reason).
+    # 行を移動（前に追加）しつつ書き換え。行は移動しているため、単純なsyncは
+    # first_seenを書き換えるだろう——しかしhashが変化しているため、hashガードは
+    # これをスキップする必要がある。行を移動させることが、n==0を本当の回帰テストに
+    # する（同じ行での書き換えなら間違った理由でn==0になる）。
     doc.write_text(f"\n\n\n# H\n\nThe {TERM} now reworded.\n", encoding="utf-8")
     n = e.sync_linenumbers([str(doc)], str(ledger))
 
-    assert n == 0, "content change must not be silently synced, even if the line moved"
+    assert n == 0, "内容変更は行が移動していてもサイレントに同期されてはならない"
     _, rows = e.read_ledger(str(ledger))
-    assert e.index(rows)[TERM]["hash"] == old_hash  # left for record_judgment to handle
-    assert e.index(rows)[TERM]["first_seen"] == old_seen  # not rewritten
-    # and it should still surface as MOVED for a re-judgment
+    assert e.index(rows)[TERM]["hash"] == old_hash  # record_judgmentに委ねる
+    assert e.index(rows)[TERM]["first_seen"] == old_seen  # 書き換えられていない
+    # そしてMOVEDとして再判断対象に浮上するべき
     d = e.diff(e.scan([str(doc)]), e.index(rows))
     assert any(x["term"] == TERM for x in d["moved"])
 

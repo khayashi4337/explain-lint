@@ -1,9 +1,9 @@
-"""ISSUE-02 regression: the ledger must survive cells containing '|'.
+"""ISSUE-02回帰テスト: 台帳がセル内 '|' を含む場合でも生き残ることを確認する。
 
-write_ledger escaped '|' -> '\\|', but read_ledger split on '[^|]', so an
-escaped pipe broke column parsing and the whole row VANISHED — a silent data
-loss that then re-flagged the term as NEW forever. write/read must be a
-symmetric round-trip.
+write_ledgerは '|' -> '\\|' にエスケープするが、read_ledgerは '[^|]' で分割していたため、
+エスケープされたパイプがカラム解析を壊し、行全体が消失した——サイレントな
+データ損失により、その用語は永遠にNEWとして再フラグされた。write/readは
+対称なラウンドトリップでなければならない。
 """
 import explain_lint as e
 
@@ -33,7 +33,7 @@ def test_roundtrip_with_pipe_in_cells(tmp_path):
     ]
     e.write_ledger(str(ledger), e.DEFAULT_PREAMBLE, rows)
     _, back = e.read_ledger(str(ledger))
-    assert len(back) == 2, "both rows must survive when a cell contains '|'"
+    assert len(back) == 2, "セルに '|' が含まれていても両行が生き残る必要がある"
     bi = e.index(back)
     assert bi["Foo"]["first_seen"] == "d.md:5 §Head | with pipe"
     assert bi["Foo"]["notes"] == "note with | pipe"
@@ -41,7 +41,7 @@ def test_roundtrip_with_pipe_in_cells(tmp_path):
 
 
 def test_roundtrip_edge_chars(tmp_path):
-    """Lone backslash and a doubled '||' must also survive the round-trip."""
+    """単独のバックスラッシュと倍化された '||' もラウンドトリップで生き残る必要がある。"""
     ledger = tmp_path / "l.terms.md"
     rows = [
         {"term": "Back", "category": "c", "first_seen": r"d.md:1 §a\b",
@@ -59,13 +59,13 @@ def test_roundtrip_edge_chars(tmp_path):
 
 
 def test_record_judgment_pipe_heading_does_not_vanish(tmp_path):
-    """The real-world trigger: a heading with '|' must not delete the row."""
+    """現実のトリガー: '|' を含む見出しが行を削除してはならない。"""
     doc = tmp_path / "d.md"
     doc.write_text("# Head | with pipe\n\nThe オブザーバブル here.\n", encoding="utf-8")
     ledger = tmp_path / "d.md.terms.md"
     e.record_judgment(str(ledger), "オブザーバブル", explained="no", notes="x", paths=[str(doc)])
     _, rows = e.read_ledger(str(ledger))
-    assert "オブザーバブル" in e.index(rows), "row must survive a pipe in the heading"
+    assert "オブザーバブル" in e.index(rows), "見出しにパイプがあっても行は生き残る必要がある"
     d = e.diff(e.scan([str(doc)]), e.index(rows))
     assert not any(x["term"] == "オブザーバブル" for x in d["new"]), \
-        "judged term must not be re-flagged NEW (no silent loss)"
+        "判断済みの用語はNEWとして再フラグされてはならない（サイレント損失なし）"

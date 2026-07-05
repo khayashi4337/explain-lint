@@ -1,4 +1,4 @@
-"""Make the repo root importable so tests can `import explain_lint`."""
+"""リポジトリルートをインポート可能にし、テストで `import explain_lint` できるようにする。"""
 import os
 import sys
 

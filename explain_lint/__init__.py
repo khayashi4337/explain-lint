@@ -1,32 +1,32 @@
-"""explain-lint — a linter for unexplained terms in (AI-written) prose.
+"""explain-lint — 文章中の未説明用語を見つけるリンター。
 
-WHY
-    Compilers catch "undefined variable." Prose has the same bug: a term used
-    without ever being explained. AI-generated text is especially prone to it —
-    it drops jargon fluently and never defines it. explain-lint is the prose
-    analogue of a linter: it finds every term's FIRST occurrence, remembers it
-    in a ledger, and — differentially — surfaces only what changed since last
-    time, so the "is this explained?" judgment (by a human or an LLM) runs on
-    the diff, not the whole document every time.
+目的
+    コンパイラは「未定義の変数」を検出する。文章にも同じバグがある——
+    定義されずに使われる用語だ。AI生成テキストは特にこの問題を起こしやすく、
+    流暢に専門用語を織り交ぜながら定義を一切書かない。explain-lint は文章版
+    リンターである: 各用語の初出を見つけ、台帳に記録し、差分ベースで
+    前回からの変化だけを抽出する。これにより「本当に説明されているか？」
+    という判断（人間またはLLM）を毎回文書全体ではなく差分に対して実行できる。
 
-LAYERS (one concern per module)
-    patterns  — extraction policy, ledger schema, shared config constants
-    extract   — scan(), get_context(): find each term's first occurrence
-    ledger    — read/write the Markdown ledger, record_judgment(), list_gaps()
-    diff      — diff(), sync_linenumbers(): the differential
-    cli       — the command-line entry point (the only module that prints)
-    The judgment (is this term one that needs a gloss, and is it explained?) is
-    a separate human/LLM layer — see explain_lint_mcp.py.
+レイヤー構成（1モジュール1責務）
+    patterns  — 抽出ポリシー、台帳スキーマ、共有設定定数
+    extract   — scan(), get_context(): 各用語の初出を検出
+    ledger    — Markdown台帳の読み書き、record_judgment(), list_gaps()
+    diff      — diff(), sync_linenumbers(): 差分エンジン
+    cli       — コマンドラインエントリポイント（出力を行う唯一のモジュール）
+    「この用語は説明が必要か？説明されているか？」という判断は、別の
+    人間/LLMレイヤーの仕事——explain_lint_mcp.py を参照。
 
 CLI
     python -m explain_lint doc.md [more.md ...] [--ledger PATH]
-      (default)     report NEW / MOVED / GONE; exit 1 if NEW or MOVED
-      --dump        print every term's first occurrence (to seed a ledger)
-      --sync        rewrite ledger line numbers for hash-matched terms
-      --gaps        list ledger terms marked explained=no
-      --no-kana / --no-latin / --min-kana N / --min-latin N   tune extraction
+      (デフォルト)     NEW / MOVED / GONE を報告; NEW または MOVED で exit 1
+      --dump        全用語の初出を表示（台帳のシード用）
+      --sync        hash一致する用語の行番号を更新
+      --gaps        台帳で explained=no と判定された用語を一覧
+      --no-kana / --no-latin / --min-kana N / --min-latin N   抽出のチューニング
+      --lang ja     CLIメッセージを日本語で出力（デフォルト: en）
 
-LICENSE  MIT. Spun out of the "観測の窓" paper project (2026).
+ライセンス  MIT。「観測の窓」論文プロジェクト（2026）から派生。
 """
 from .patterns import (COLS, DEFAULT_MIN_KANA, DEFAULT_MIN_LATIN,
                        DEFAULT_PREAMBLE, HASH_LEN, HASH_RE, HEADING, KATAKANA,
@@ -39,16 +39,16 @@ from .diff import DiffResult, diff, sync_linenumbers
 from .cli import main
 
 __all__ = [
-    # extraction
+    # 抽出
     "scan", "get_context", "normalize", "line_hash", "fmt_seen", "Occurrence",
-    # ledger (the private _split_row lives at explain_lint.ledger._split_row)
+    # 台帳（private _split_row は explain_lint.ledger._split_row に存在）
     "read_ledger", "write_ledger", "index", "list_gaps", "record_judgment",
     "default_ledger",
-    # diff
+    # 差分
     "diff", "sync_linenumbers", "DiffResult",
-    # cli
+    # CLI
     "main",
-    # config / patterns
+    # 設定 / パターン
     "DEFAULT_MIN_KANA", "DEFAULT_MIN_LATIN", "KATAKANA", "LATIN", "HEADING",
     "STRIP", "HASH_RE", "HASH_LEN", "PIPE_SPLIT", "COLS", "TERMS_SUFFIX",
     "DEFAULT_PREAMBLE",

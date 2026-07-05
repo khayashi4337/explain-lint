@@ -1,22 +1,21 @@
 """
-explain-lint MCP server — expose the deterministic core to an LLM client.
+explain-lint MCPサーバー — 決定的論理コアをLLMクライアントに公開する。
 
-The machine core (the explain_lint package) finds each term's first occurrence
-and diffs it against a ledger. The *judgment* — is this term one that needs a
-gloss, and is it actually explained at first use? — is the LLM's job. This
-server is the seam: it lets an assistant drive the linter.
+機械コア（explain_lintパッケージ）は各用語の初出を見つけ、台帳と差分を取る。
+*判断*——この用語は用語解説が必要か？初出で実際に説明されているか？——は
+LLMの仕事である。このサーバーはその接点: アシスタントにリンターの駆動を許す。
 
-Typical loop an assistant runs:
-    1. lint_report(paths)                  -> which terms are NEW / MOVED
-    2. get_term_context(term, paths)       -> read how each is introduced
-    3. record_judgment(...)                -> write the verdict to the ledger
-    4. list_gaps(ledger)                   -> report unexplained terms to the human
+アシスタントが実行する典型的なループ:
+    1. lint_report(paths)                  -> どの用語が NEW / MOVED か
+    2. get_term_context(term, paths)       -> 各用語の導入箇所を読む
+    3. record_judgment(...)                -> 評定を台帳に書き込む
+    4. list_gaps(ledger)                   -> 未説明用語を人間に報告
 
-The server holds no model and makes no API calls; it stays deterministic and
-offline. The intelligence is whatever client connects to it.
+サーバーはモデルを持たず、API呼び出しも行わない; 決定的論理でオフラインの
+ままである。知能は接続するクライアント側にある。
 
-Run:  python explain_lint_mcp.py           (stdio transport)
-Deps: pip install mcp        (the explain_lint core needs nothing)
+実行:  python explain_lint_mcp.py           (stdioトランスポート)
+依存: pip install mcp        (explain_lintコアは何も不要)
 """
 import os
 from mcp.server.fastmcp import FastMCP
@@ -25,7 +24,7 @@ import explain_lint as core
 
 mcp = FastMCP("explain-lint")
 
-# extraction defaults come from the core, so CLI and MCP stay symmetric (ISSUE-06)
+# 抽出デフォルトはコアから取得。CLIとMCPで対称に保つ（ISSUE-06）
 _MK = core.DEFAULT_MIN_KANA
 _ML = core.DEFAULT_MIN_LATIN
 
@@ -39,19 +38,19 @@ def _extract_kw(use_kana, use_latin, min_kana, min_latin):
 def lint_report(paths: list[str], ledger: str = "", use_kana: bool = True,
                 use_latin: bool = True, min_kana: int = _MK,
                 min_latin: int = _ML) -> dict:
-    """Diff prose file(s) against the term ledger and report what changed.
+    """文章ファイルと台帳を比較し、変更点を報告する。
 
-    Call this FIRST. It returns the terms that need a judgment:
-      - new:   terms absent from the ledger (judge each: does it need a gloss?
-               is it glossed at first use?). Each item has term, first_seen,
-               line_text so you can often judge without a second call.
-      - moved: terms whose first-occurrence line was reworded — re-judge these.
-      - gone:  terms in the ledger no longer found in the text.
-      - matched: count of unchanged terms (already judged; skip them).
+    これを最初に呼ぶ。判断が必要な用語を返す:
+      - new:   台帳にない用語（各々を判断: 用語解説が必要か？初出で説明されているか？）。
+               各アイテムは term, first_seen, line_text を持つため、2回目の呼び出しなしで
+               判断できることが多い。
+      - moved: 初出行が書き換えられた用語——再判断が必要。
+      - gone:  台帳にあるがテキストから見つからなくなった用語。
+      - matched: 変更のない既判定用語の数（スキップ可）。
 
-    paths: markdown/text files in reading order.
-    ledger: ledger path (default: <first-path>.terms.md).
-    use_kana/use_latin/min_kana/min_latin: extraction tuning (same as the CLI).
+    paths: 読み順のMarkdown/テキストファイル。
+    ledger: 台帳パス（デフォルト: <最初のパス>.terms.md）。
+    use_kana/use_latin/min_kana/min_latin: 抽出のチューニング（CLIと同じ）。
     """
     ledger_path = ledger or core.default_ledger(paths)
     first = core.scan(paths, **_extract_kw(use_kana, use_latin, min_kana, min_latin))
@@ -73,11 +72,10 @@ def lint_report(paths: list[str], ledger: str = "", use_kana: bool = True,
 def get_term_context(term: str, paths: list[str], window: int = 2,
                      use_kana: bool = True, use_latin: bool = True,
                      min_kana: int = _MK, min_latin: int = _ML) -> dict:
-    """Return a term's first occurrence with surrounding lines, to judge it.
+    """指定用語の初出と周辺行を返す。判断材料として使う。
 
-    Use this when lint_report's line_text is not enough to decide whether the
-    term is explained at first use. `window` is the number of lines before and
-    after to include. Returns {found:false} if the term never occurs.
+    lint_report の line_text だけでは初出で説明されているか判断できない場合に使う。
+    `window` は前後に含める行数。用語が一度も出現しない場合は {found:false} を返す。
     """
     ctx = core.get_context(term, paths, window=window,
                            **_extract_kw(use_kana, use_latin, min_kana, min_latin))
@@ -89,15 +87,14 @@ def get_term_context(term: str, paths: list[str], window: int = 2,
 @mcp.tool()
 def record_judgment(ledger: str, term: str, category: str = "", explained: str = "",
                     notes: str = "", paths: list[str] | None = None) -> dict:
-    """Write a term's verdict to the ledger (create the row, or update it).
+    """用語の評定を台帳に書き込む（行を作成、または更新）。
 
     category:  needs-explanation | common | proper-noun | exclude
-    explained: yes | no | na    (`no` = needs a gloss and lacks one — the finding)
-    notes:     short free text.
-    paths:     needed to create a row for a term not yet in the ledger, and to
-               re-sync a MOVED term's position on update. Omit for a pure
-               verdict edit of an existing row.
-    Returns {action: created|updated|error, detail}.
+    explained: yes | no | na    (`no` = 用語解説が必要でまだない——発見事項）
+    notes:     短い自由テキスト。
+    paths:     台帳にない新規用語の行作成に必要。また、MOVED用語の位置を
+               更新時に再同期するのにも必要。既存行の評定のみの編集なら省略可。
+    戻り値 {action: created|updated|error, detail}。
     """
     action = core.record_judgment(ledger, term, category=category or None,
                                   explained=explained or None, notes=notes or None,
@@ -109,7 +106,7 @@ def record_judgment(ledger: str, term: str, category: str = "", explained: str =
 
 @mcp.tool()
 def list_gaps(ledger: str) -> dict:
-    """List terms judged `explained = no` — the actionable output (missing glosses)."""
+    """`explained = no` と判定された用語を一覧——アクションすべき出力（未解説用語）。"""
     gaps = core.list_gaps(ledger)
     return {"count": len(gaps),
             "gaps": [{"term": r["term"], "first_seen": r["first_seen"],
@@ -120,10 +117,10 @@ def list_gaps(ledger: str) -> dict:
 def sync_ledger(paths: list[str], ledger: str = "", use_kana: bool = True,
                 use_latin: bool = True, min_kana: int = _MK,
                 min_latin: int = _ML) -> dict:
-    """Rewrite ledger line numbers for terms whose line drifted (hash unchanged).
+    """行がずれた用語（hash不変）の台帳行番号を書き換える。
 
-    Run after edits that only shift line numbers, so lint_report stays quiet
-    about pure drift and flags only real context changes.
+    行番号がずれるだけの編集後に実行し、純粋なずれでは lint_report が黙り、
+    本当の文脈変更のみをフラグするようにする。
     """
     ledger_path = ledger or core.default_ledger(paths)
     if not os.path.exists(ledger_path):
@@ -136,7 +133,7 @@ def sync_ledger(paths: list[str], ledger: str = "", use_kana: bool = True,
 @mcp.tool()
 def dump_terms(paths: list[str], use_kana: bool = True, use_latin: bool = True,
                min_kana: int = _MK, min_latin: int = _ML) -> dict:
-    """List every term's first occurrence (seed material for a new ledger)."""
+    """全用語の初出を一覧（新規台帳のシード材料）。"""
     first = core.scan(paths, **_extract_kw(use_kana, use_latin, min_kana, min_latin))
     items = sorted(first.items(), key=lambda kv: (kv[1]["file"], kv[1]["line"]))
     return {"count": len(first),

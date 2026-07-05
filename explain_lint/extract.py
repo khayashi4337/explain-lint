@@ -1,4 +1,4 @@
-"""Term extraction: find each term's first occurrence, with context."""
+"""用語抽出: 各用語の初出を検出し、コンテキストとともに記録する。"""
 import hashlib
 import os
 import re
@@ -17,21 +17,28 @@ class Occurrence(TypedDict):
 
 
 def normalize(line: str) -> str:
+    """行の空白を正規化する（前後の空白を削除し、連続空白を1スペースに圧縮）。"""
     return re.sub(r"\s+", " ", line.strip())
 
 
 def line_hash(line: str) -> str:
+    """行テキストの正規化後の内容からMD5ハッシュを生成し、先頭 HASH_LEN 文字を返す。"""
     return hashlib.md5(normalize(line).encode("utf-8")).hexdigest()[:HASH_LEN]
 
 
 def fmt_seen(fname: str, line: int, heading: str) -> str:
+    """初出位置の文字列表現: `ファイル名:行番号 §見出し`（見出しなければ省略）。"""
     return f"{fname}:{line}" + (f" §{heading}" if heading else "")
 
 
 def scan(paths, use_kana: bool = True, use_latin: bool = True,
          min_kana: int = DEFAULT_MIN_KANA,
          min_latin: int = DEFAULT_MIN_LATIN) -> "dict[str, Occurrence]":
-    """Return {term: Occurrence} for each term's first occurrence across paths."""
+    """全パスを走査し、各用語の初出を {用語: Occurrence} として返す。
+
+    複数ファイルを指定した場合は読み順で処理し、各用語の最初の登場位置を記録する。
+    フェンスコードブロック内の行はスキップし、見出し行は直近の見出しとして記憶する。
+    """
     first: "dict[str, Occurrence]" = {}
     for path in paths:
         with open(path, encoding="utf-8") as f:
@@ -63,10 +70,10 @@ def scan(paths, use_kana: bool = True, use_latin: bool = True,
 
 
 def get_context(term: str, paths, window: int = 2, **scan_kw) -> Optional[dict]:
-    """First occurrence of `term` with `window` lines of surrounding context.
+    """指定用語の初出とその前後 `window` 行のコンテキストを返す。
 
-    Returns {term, first_seen, file, line, heading, hash, line_text,
-    context:[{n,text}...]} or None if the term never occurs.
+    戻り値: {term, first_seen, file, line, heading, hash, line_text,
+    context:[{n,text}...]}。用語が一度も出現しない場合は None。
     """
     occ = scan(paths, **scan_kw).get(term)
     if not occ:
