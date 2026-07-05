@@ -125,6 +125,18 @@ def list_gaps(ledger: str) -> dict:
 
 
 @mcp.tool()
+def generate_index(ledger: str) -> dict:
+    """台帳から索引（用語→ページ/行位置）を生成する。
+
+    用語でソート済みの [(term, first_seen), ...] を返す。
+    PDFの場合、first_seen は `ファイル名:pページ番号 §見出し` 形式。
+    """
+    entries = core.generate_index(ledger)
+    return {"count": len(entries),
+            "index": [{"term": t, "first_seen": s} for t, s in entries]}
+
+
+@mcp.tool()
 def sync_ledger(paths: list[str], ledger: str = "", use_kana: bool = True,
                 use_latin: bool = True, use_morph: bool = False,
                 min_kana: int = _MK, min_latin: int = _ML,
