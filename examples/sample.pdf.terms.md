@@ -7,6 +7,6 @@
 
 | term | category | first_seen | hash | explained | notes |
 |---|---|---|---|---|---|
-| Markov | needs-explanation | sample.pdf:1 | 1b3f44b3 | yes | glossed inline |
-| Lindblad | needs-explanation | sample.pdf:1 | ebc5a015 | no | GAP: no gloss |
-| Fourier | needs-explanation | sample.pdf:1 | 6f3a5e5e | no | GAP: no gloss |
+| Markov | needs-explanation | sample.pdf:p1 | 1b3f44b3 | yes | glossed inline |
+| Lindblad | needs-explanation | sample.pdf:p1 | ebc5a015 | no | GAP: no gloss |
+| Fourier | needs-explanation | sample.pdf:p1 | 6f3a5e5e | no | GAP: no gloss |

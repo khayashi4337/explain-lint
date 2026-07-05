@@ -97,7 +97,7 @@ def main() -> None:
         first = scan(args.inputs, **kw)
         print("term\tfirst_seen\thash\tline")
         for t, o in sorted(first.items(), key=lambda kv: (kv[1]["file"], kv[1]["line"])):
-            print(f"{t}\t{fmt_seen(o['file'], o['line'], o['heading'])}\t{o['hash']}\t{o['text'][:100]}")
+            print(f"{t}\t{fmt_seen(o['file'], o['line'], o['heading'], o.get('page', 0))}\t{o['hash']}\t{o['text'][:100]}")
         print(f"\n" + _msg(L, "terms_count", n=len(first)), file=sys.stderr)
         return
 

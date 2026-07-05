@@ -135,11 +135,57 @@ def test_pdf_sample_extract_terms():
     terms = e.scan([_PDF_SAMPLE])
     assert len(terms) > 0
     assert "Markov" in terms or "Lindblad" in terms
-    # PDFの用語はページ番号を行番号として持つ（1ページ目なので line=1）
+    # PDFの用語は絶対行番号とページ番号を持つ
     for occ in terms.values():
         assert occ["file"] == "sample.pdf"
         assert occ["line"] >= 1
+        assert occ["page"] >= 1
         break
+
+
+def test_pdf_context_correct_lines():
+    # ISSUE-14: get_context() がPDFで正しい行を返すこと。
+    if not _has_pypdf():
+        return
+    ctx = e.get_context("Fourier", [_PDF_SAMPLE], window=2)
+    assert ctx is not None
+    assert ctx["file"] == "sample.pdf"
+    assert ctx["page"] >= 1
+    # Fourier を含む行がコンテキストに含まれていること
+    context_texts = [c["text"] for c in ctx["context"]]
+    assert any("Fourier" in t for t in context_texts)
+    # first_seen が pN 形式であること
+    assert ":p" in ctx["first_seen"]
+
+
+def test_pdf_first_seen_page_format():
+    # ISSUE-14: PDFの first_seen が file:pN 形式であること。
+    if not _has_pypdf():
+        return
+    terms = e.scan([_PDF_SAMPLE])
+    from explain_lint import fmt_seen
+    for term, occ in terms.items():
+        seen = fmt_seen(occ["file"], occ["line"], occ["heading"], occ.get("page", 0))
+        assert ":p" in seen, f"{term}: {seen} に :p が含まれていない"
+        break
+
+
+def test_markdown_first_seen_unchanged():
+    # ISSUE-14: Markdownの first_seen は従来通り file:N 形式であること（回帰確認）。
+    import tempfile, os as _os
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False,
+                                     encoding="utf-8") as f:
+        f.write("# Head\n\nThe オブザーバブル here.\n")
+        path = f.name
+    try:
+        terms = e.scan([path])
+        from explain_lint import fmt_seen
+        occ = terms["オブザーバブル"]
+        seen = fmt_seen(occ["file"], occ["line"], occ["heading"], occ.get("page", 0))
+        assert ":p" not in seen
+        assert ":3" in seen  # 3行目
+    finally:
+        _os.unlink(path)
 
 
 def test_pdf_sample_index():
