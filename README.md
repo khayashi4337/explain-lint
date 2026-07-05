@@ -64,7 +64,8 @@ python -m explain_lint ch01.md ch02.md ch03.md --ledger book.terms.md
 ```
 
 See `examples/sample.md` (English) and `examples/sample_ja.md` (Japanese) for
-working examples with pre-built ledgers.
+working examples with pre-built ledgers. PDF samples are at
+`examples/sample.pdf` and `examples/sample_ja.pdf` (requires: `pip install explain-lint[pdf]`).
 
 ## The ledger
 
@@ -101,6 +102,12 @@ grep '| no |' doc.md.terms.md
 - Record each term's first occurrence: file, line, nearest heading, line-hash.
 - Ignore fenced code, inline code, `$math$`, `$$math$$`, image tags, and URLs.
 - Diff against the ledger → `NEW` / `MOVED` / `GONE`; exit 1 on NEW or MOVED.
+- PDF input support: `pypdf` extracts text per page; page numbers replace line
+  numbers in `first_seen` (e.g. `book.pdf:p42 §Geometry`). Requires: `pip install explain-lint[pdf]`.
+- Back-of-book index: `--index` generates a sorted term → page/line listing from
+  the ledger.
+- Morphological analysis: `--morph` extracts kanji/hiragana nouns via Janome.
+  Requires: `pip install explain-lint[ja]`.
 
 **Does not (on purpose):**
 
