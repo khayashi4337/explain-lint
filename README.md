@@ -63,6 +63,9 @@ Multiple files are read in order (useful for a book split into chapters):
 python -m explain_lint ch01.md ch02.md ch03.md --ledger book.terms.md
 ```
 
+See `examples/sample.md` (English) and `examples/sample_ja.md` (Japanese) for
+working examples with pre-built ledgers.
+
 ## The ledger
 
 A plain Markdown table you (or an LLM) edit. The tool maintains the first four
