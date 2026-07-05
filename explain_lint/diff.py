@@ -23,7 +23,8 @@ def diff(first, ledger_idx) -> DiffResult:
     new, moved, matched = [], [], 0
     for t, occ in sorted(first.items(), key=lambda kv: (kv[1]["file"], kv[1]["line"])):
         e = ledger_idx.get(t)
-        seen = fmt_seen(occ["file"], occ["line"], occ["heading"])
+        seen = fmt_seen(occ["file"], occ["line"], occ["heading"],
+                         occ.get("page", 0))
         if e is None:
             new.append({"term": t, "first_seen": seen, **occ})
         elif e["hash"] != occ["hash"]:
@@ -46,7 +47,8 @@ def sync_linenumbers(paths, ledger_path: str, **scan_kw) -> int:
     for r in rows:
         occ = first.get(r["term"])
         if occ and occ["hash"] == r["hash"]:
-            seen = fmt_seen(occ["file"], occ["line"], occ["heading"])
+            seen = fmt_seen(occ["file"], occ["line"], occ["heading"],
+                             occ.get("page", 0))
             if seen != r["first_seen"]:
                 r["first_seen"] = seen
                 updated += 1

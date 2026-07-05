@@ -116,7 +116,8 @@ def record_judgment(ledger_path: str, term: str, category=None, explained=None,
         if not occ:
             return "error: term not found in given paths"
         row = {"term": term, "category": category or "",
-               "first_seen": fmt_seen(occ["file"], occ["line"], occ["heading"]),
+               "first_seen": fmt_seen(occ["file"], occ["line"], occ["heading"],
+                                      occ.get("page", 0)),
                "hash": occ["hash"], "explained": explained or "", "notes": notes or ""}
         rows.append(row)
         action = "created"
@@ -130,7 +131,8 @@ def record_judgment(ledger_path: str, term: str, category=None, explained=None,
         if paths:
             occ = scan(paths, **scan_kw).get(term)
             if occ:
-                row["first_seen"] = fmt_seen(occ["file"], occ["line"], occ["heading"])
+                row["first_seen"] = fmt_seen(occ["file"], occ["line"], occ["heading"],
+                                               occ.get("page", 0))
                 row["hash"] = occ["hash"]
         action = "updated"
     write_ledger(ledger_path, preamble, rows)

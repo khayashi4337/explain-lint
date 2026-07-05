@@ -151,7 +151,7 @@ def dump_terms(paths: list[str], use_kana: bool = True, use_latin: bool = True,
     first = core.scan(paths, **_extract_kw(use_kana, use_latin, use_morph, min_kana, min_latin, min_kanji))
     items = sorted(first.items(), key=lambda kv: (kv[1]["file"], kv[1]["line"]))
     return {"count": len(first),
-            "terms": [{"term": t, "first_seen": core.fmt_seen(o["file"], o["line"], o["heading"]),
+            "terms": [{"term": t, "first_seen": core.fmt_seen(o["file"], o["line"], o["heading"], o.get("page", 0)),
                        "hash": o["hash"]} for t, o in items]}
 
 
