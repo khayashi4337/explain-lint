@@ -91,7 +91,10 @@ def _read_lines(path: str) -> "list[tuple[int, str]]":
     PDFファイルの場合はpypdfでページごとにテキストを抽出し、全ページを通した
     連続行番号を割り当てる。Markdown/テキストファイルの場合は従来通り行番号を使う。
     pypdfが未インストールでPDFが入力された場合は空リストを返す。
+    ファイルが存在しない場合はFileNotFoundErrorを投げる。
     """
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"file not found: {path}")
     if path.lower().endswith(".pdf"):
         try:
             from pypdf import PdfReader

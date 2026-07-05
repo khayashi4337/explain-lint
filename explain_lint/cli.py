@@ -87,6 +87,11 @@ def main() -> None:
     args = ap.parse_args()
     L = args.lang
 
+    # 入力ファイルの存在チェック（ISSUE-12）
+    for inp in args.inputs:
+        if not os.path.exists(inp):
+            sys.exit(f"{PROG}: error: file not found: {inp}")
+
     ledger_path = args.ledger or default_ledger(args.inputs)
     kw = dict(use_kana=not args.no_kana, use_latin=not args.no_latin,
               use_morph=args.morph,
