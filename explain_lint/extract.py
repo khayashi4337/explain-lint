@@ -79,6 +79,34 @@ def _morph_terms(text: str, min_kanji: int = DEFAULT_MIN_KANJI) -> set:
     return terms
 
 
+def _read_lines(path: str) -> "list[tuple[int, str]]":
+    """ファイルを読み込み、(行番号, 行テキスト) のリストを返す。
+
+    PDFファイルの場合はpypdfでページごとにテキストを抽出し、ページ番号を行番号
+    として扱う。Markdown/テキストファイルの場合は従来通り行番号を使う。
+    pypdfが未インストールでPDFが入力された場合は空リストを返す。
+    """
+    if path.lower().endswith(".pdf"):
+        try:
+            from pypdf import PdfReader
+        except ImportError:
+            return []
+        reader = PdfReader(path)
+        result = []
+        for page_num, page in enumerate(reader.pages, 1):
+            text = page.extract_text() or ""
+            for line in text.split("\n"):
+                result.append((page_num, line))
+        return result
+    with open(path, encoding="utf-8") as f:
+        return [(i, line) for i, line in enumerate(f.read().split("\n"), 1)]
+
+
+def _read_context_lines(path: str) -> "list[str]":
+    """コンテキスト取得用にファイルを行リストとして返す（PDF含む）。"""
+    return [line for _, line in _read_lines(path)]
+
+
 def scan(paths, use_kana: bool = True, use_latin: bool = True,
          use_morph: bool = False,
          min_kana: int = DEFAULT_MIN_KANA,
@@ -94,11 +122,10 @@ def scan(paths, use_kana: bool = True, use_latin: bool = True,
     """
     first: "dict[str, Occurrence]" = {}
     for path in paths:
-        with open(path, encoding="utf-8") as f:
-            lines = f.read().split("\n")
+        lines = _read_lines(path)
         fname = os.path.basename(path)
         heading, in_code = "", False
-        for i, raw in enumerate(lines, 1):
+        for i, raw in lines:
             if raw.strip().startswith("```"):
                 in_code = not in_code
                 continue
@@ -135,8 +162,7 @@ def get_context(term: str, paths, window: int = 2, **scan_kw) -> Optional[dict]:
         return None
     for path in paths:
         if os.path.basename(path) == occ["file"]:
-            with open(path, encoding="utf-8") as f:
-                lines = f.read().split("\n")
+            lines = _read_context_lines(path)
             lo = max(1, occ["line"] - window)
             hi = min(len(lines), occ["line"] + window)
             ctx = [{"n": n, "text": lines[n - 1]} for n in range(lo, hi + 1)]

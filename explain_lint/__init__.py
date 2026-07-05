@@ -23,6 +23,7 @@ CLI
       --dump        全用語の初出を表示（台帳のシード用）
       --sync        hash一致する用語の行番号を更新
       --gaps        台帳で explained=no と判定された用語を一覧
+      --index       台帳から索引（back-of-book index）を生成
       --no-kana / --no-latin / --min-kana N / --min-latin N   抽出のチューニング
       --morph / --no-morph   形態素解析による漢字・ひらがな用語抽出（要: pip install explain-lint[ja]）
       --lang ja     CLIメッセージを日本語で出力（デフォルト: en）
@@ -35,8 +36,8 @@ from .patterns import (COLS, DEFAULT_MIN_KANA, DEFAULT_MIN_KANJI, DEFAULT_MIN_LA
                        MORPH_TARGET_POS, PIPE_SPLIT, STRIP, TERMS_SUFFIX)
 from .extract import (Occurrence, fmt_seen, get_context, line_hash, normalize,
                       scan)
-from .ledger import (default_ledger, index, list_gaps, read_ledger,
-                     record_judgment, write_ledger)
+from .ledger import (default_ledger, generate_index, index, list_gaps,
+                     read_ledger, record_judgment, write_ledger)
 from .diff import DiffResult, diff, sync_linenumbers
 from .cli import main
 
@@ -45,7 +46,7 @@ __all__ = [
     "scan", "get_context", "normalize", "line_hash", "fmt_seen", "Occurrence",
     # 台帳（private _split_row は explain_lint.ledger._split_row に存在）
     "read_ledger", "write_ledger", "index", "list_gaps", "record_judgment",
-    "default_ledger",
+    "generate_index", "default_ledger",
     # 差分
     "diff", "sync_linenumbers", "DiffResult",
     # CLI
