@@ -60,6 +60,9 @@ python -m explain_lint doc.md --sync   # 変更のない用語の行番号を書
 python -m explain_lint ch01.md ch02.md ch03.md --ledger book.terms.md
 ```
 
+動作例は `examples/sample.md`（英語）と `examples/sample_ja.md`（日本語）を
+参照してください。いずれも判定済みの台帳が付属しています。
+
 ## 台帳（ledger）
 
 自分（またはLLM）が編集するプレーンなMarkdownテーブルです。ツールは最初の4列を
