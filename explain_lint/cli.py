@@ -9,7 +9,7 @@ import sys
 
 from .patterns import DEFAULT_MIN_KANA, DEFAULT_MIN_KANJI, DEFAULT_MIN_LATIN
 from .extract import fmt_seen, scan
-from .ledger import default_ledger, index, list_gaps, read_ledger
+from .ledger import default_ledger, generate_index, index, list_gaps, read_ledger
 from .diff import diff, sync_linenumbers
 
 PROG = "explain-lint"
@@ -29,6 +29,8 @@ _MSGS = {
         "moved_header": "  MOVED ({n}) — first-occurrence context changed, re-judge:",
         "gone_header": "  GONE ({n}) — in ledger, not in text: {terms}",
         "ok": "  OK no new or moved terms",
+        "index_header": "# Index ({n} terms)",
+        "no_ledger_index": "no ledger at {path} (seed one with --dump first)",
     },
     "ja": {
         "terms_count": "# {n} 件の用語",
@@ -42,6 +44,8 @@ _MSGS = {
         "moved_header": "  MOVED（{n}件）— 初出の文脈が変更されました。再判断してください:",
         "gone_header": "  GONE（{n}件）— 台帳にあるが本文から消滅: {terms}",
         "ok": "  OK 新規・移動の用語はありません",
+        "index_header": "# 索引（{n}件）",
+        "no_ledger_index": "台帳がありません: {path}（先に --dump で作成してください）",
     },
 }
 
@@ -69,6 +73,7 @@ def main() -> None:
     mode.add_argument("--dump", action="store_true", help="print all first occurrences")
     mode.add_argument("--sync", action="store_true", help="update ledger line numbers")
     mode.add_argument("--gaps", action="store_true", help="list terms marked explained=no")
+    mode.add_argument("--index", action="store_true", help="generate back-of-book index from ledger")
     ap.add_argument("--no-kana", action="store_true")
     ap.add_argument("--no-latin", action="store_true")
     ap.add_argument("--min-kana", type=int, default=DEFAULT_MIN_KANA)
@@ -107,6 +112,15 @@ def main() -> None:
         print(_msg(L, "gaps_header", n=len(gaps)))
         for r in gaps:
             print(f"    {r['first_seen']}: {r['term']}  {('— ' + r['notes']) if r['notes'] else ''}")
+        return
+
+    if args.index:
+        if not os.path.exists(ledger_path):
+            sys.exit(_msg(L, "no_ledger_index", path=ledger_path))
+        entries = generate_index(ledger_path)
+        print(_msg(L, "index_header", n=len(entries)))
+        for term, seen in entries:
+            print(f"  {term}  {seen}")
         return
 
     first = scan(args.inputs, **kw)

@@ -18,6 +18,7 @@ dependencies = []
 [project.optional-dependencies]
 mcp = ["mcp>=1.0"]
 ja = ["janome>=0.4"]
+pdf = ["pypdf>=4.0"]
 
 [project.scripts]
 explain-lint = "explain_lint.cli:main"

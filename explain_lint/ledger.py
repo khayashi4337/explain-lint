@@ -135,3 +135,15 @@ def record_judgment(ledger_path: str, term: str, category=None, explained=None,
         action = "updated"
     write_ledger(ledger_path, preamble, rows)
     return action
+
+
+def generate_index(ledger_path: str) -> "list[tuple[str, str]]":
+    """台帳から索引（用語 -> ページ番号/位置）を生成する。
+
+    戻り値: [(term, first_seen), ...] のリスト。用語でソート済み。
+    first_seen は `ファイル名:行番号 §見出し` 形式の文字列。
+    PDFの場合は行番号がページ番号になる。
+    """
+    _, rows = read_ledger(ledger_path)
+    return sorted([(r["term"], r["first_seen"]) for r in rows],
+                  key=lambda kv: kv[0])
