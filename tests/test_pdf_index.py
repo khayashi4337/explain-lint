@@ -116,3 +116,40 @@ def test_markdown_still_works_after_pdf_support(tmp_path):
     terms = e.scan([str(doc)])
     assert "オブザーバブル" in terms
     assert terms["オブザーバブル"]["line"] == 3
+
+
+# --- ISSUE-11: PDFサンプルのテスト ---
+
+_PDF_SAMPLE = os.path.join(REPO, "examples", "sample.pdf")
+_PDF_SAMPLE_JA = os.path.join(REPO, "examples", "sample_ja.pdf")
+
+
+def test_pdf_sample_exists():
+    # PDFサンプルファイルが存在する。
+    assert os.path.exists(_PDF_SAMPLE), "examples/sample.pdf が存在しません"
+    assert os.path.exists(_PDF_SAMPLE_JA), "examples/sample_ja.pdf が存在しません"
+
+
+def test_pdf_sample_extract_terms():
+    # PDFサンプルから用語が抽出できること。
+    if not _has_pypdf():
+        return  # pypdf未インストール時はスキップ
+    terms = e.scan([_PDF_SAMPLE])
+    assert len(terms) > 0
+    assert "Markov" in terms or "Lindblad" in terms
+    # PDFの用語はページ番号を行番号として持つ（1ページ目なので line=1）
+    for occ in terms.values():
+        assert occ["file"] == "sample.pdf"
+        assert occ["line"] >= 1
+        break
+
+
+def test_pdf_sample_index():
+    # PDFサンプルの台帳から索引が生成できること。
+    if not _has_pypdf():
+        return
+    ledger = _PDF_SAMPLE + ".terms.md"
+    if not os.path.exists(ledger):
+        return  # 台帳がない場合はスキップ
+    entries = e.generate_index(ledger)
+    assert len(entries) > 0

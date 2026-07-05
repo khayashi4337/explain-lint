@@ -61,7 +61,8 @@ python -m explain_lint ch01.md ch02.md ch03.md --ledger book.terms.md
 ```
 
 動作例は `examples/sample.md`（英語）と `examples/sample_ja.md`（日本語）を
-参照してください。いずれも判定済みの台帳が付属しています。
+参照してください。いずれも判定済みの台帳が付属しています。PDFサンプルは
+`examples/sample.pdf` と `examples/sample_ja.pdf` にあります（要: `pip install explain-lint[pdf]`）。
 
 ## 台帳（ledger）
 
@@ -98,6 +99,12 @@ grep '| no |' doc.md.terms.md
 - 各用語の初出を記録: ファイル、行、直近の見出し、行ハッシュ。
 - フェンスコード、インラインコード、`$math$`、`$$math$$`、画像タグ、URLを無視。
 - 台帳との差分 → `NEW` / `MOVED` / `GONE`; NEW または MOVED で exit 1。
+- PDF入力対応: `pypdf` がページごとにテキストを抽出。ページ番号が行番号の
+  代わりに `first_seen` に記録される（例: `book.pdf:p42 §Geometry`）。
+  要: `pip install explain-lint[pdf]`。
+- 索引生成: `--index` で台帳から用語→ページ/行のソート済み索引を出力。
+- 形態素解析: `--morph` でJanomeによる漢字・ひらがな名詞を抽出。
+  要: `pip install explain-lint[ja]`。
 
 **できないこと（意図的）:**
 
