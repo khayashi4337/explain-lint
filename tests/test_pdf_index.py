@@ -22,20 +22,6 @@ def _has_pypdf():
         return False
 
 
-def _make_pdf(path, text):
-    """pypdfで簡単なPDFファイルを生成する。"""
-    from pypdf import PdfWriter
-    from pypdf.generic import RectangleObject
-
-    writer = PdfWriter()
-    writer.add_blank_page(width=612, height=792)
-    # pypdfは直接テキストを書くのが難しいので、reportlab等が必要だが、
-    # ここではテキスト抽出のテストに焦点を当てるため、
-    # 実際のPDF生成はスキップし、Markdownでテストする。
-    # PDFのテストはISSUE-11でサンプルPDFが作成された後に本格実施する。
-    pass
-
-
 def test_index_from_ledger(tmp_path):
     # --index で台帳から索引が生成される。
     doc = tmp_path / "d.md"
@@ -101,11 +87,23 @@ def test_index_cli_no_ledger(tmp_path):
 
 def test_pdf_input_without_pypdf(tmp_path, monkeypatch):
     # pypdfが未インストールの場合、PDF入力は空結果を返す（クラッシュしない）。
-    # pypdfのインポートをブロックしてシミュレート。
+    # sys.modulesでpypdfをブロックして実際の分岐をテストする。
+    import builtins
+    real_import = builtins.__import__
+
+    def _block_pypdf(name, *args, **kwargs):
+        if name == "pypdf":
+            raise ImportError("No module named 'pypdf'")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", _block_pypdf)
+    # キャッシュされたpypdfがあればクリア
+    import sys as _sys
+    monkeypatch.delitem(_sys.modules, "pypdf", raising=False)
+
     import explain_lint.extract as ext
-    # _read_linesを直接テスト: pypdfがない場合は空リスト
-    monkeypatch.setattr(ext, "_read_lines", lambda p: [])
-    result = ext._read_lines("fake.pdf")
+    # 存在しないPDFパスでもpypdf未インストール時は空リストを返す
+    result = ext._read_lines("nonexistent.pdf")
     assert result == []
 
 

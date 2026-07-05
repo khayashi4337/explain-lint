@@ -91,7 +91,11 @@ def get_term_context(term: str, paths: list[str], window: int = 2,
 
 @mcp.tool()
 def record_judgment(ledger: str, term: str, category: str = "", explained: str = "",
-                    notes: str = "", paths: list[str] | None = None) -> dict:
+                    notes: str = "", paths: list[str] | None = None,
+                    use_kana: bool = True, use_latin: bool = True,
+                    use_morph: bool = False,
+                    min_kana: int = _MK, min_latin: int = _ML,
+                    min_kanji: int = _MJ) -> dict:
     """用語の評定を台帳に書き込む（行を作成、または更新）。
 
     category:  needs-explanation | common | proper-noun | exclude
@@ -99,11 +103,13 @@ def record_judgment(ledger: str, term: str, category: str = "", explained: str =
     notes:     短い自由テキスト。
     paths:     台帳にない新規用語の行作成に必要。また、MOVED用語の位置を
                更新時に再同期するのにも必要。既存行の評定のみの編集なら省略可。
+    use_kana/use_latin/use_morph/min_kana/min_latin/min_kanji: 抽出のチューニング（CLIと同じ）。
     戻り値 {action: created|updated|error, detail}。
     """
+    kw = _extract_kw(use_kana, use_latin, use_morph, min_kana, min_latin, min_kanji) if paths else {}
     action = core.record_judgment(ledger, term, category=category or None,
                                   explained=explained or None, notes=notes or None,
-                                  paths=paths)
+                                  paths=paths, **kw)
     ok = action in ("created", "updated")
     return {"action": action if ok else "error", "detail": "" if ok else action,
             "ledger": ledger, "term": term}
