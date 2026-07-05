@@ -7,7 +7,7 @@ import argparse
 import os
 import sys
 
-from .patterns import DEFAULT_MIN_KANA, DEFAULT_MIN_LATIN
+from .patterns import DEFAULT_MIN_KANA, DEFAULT_MIN_KANJI, DEFAULT_MIN_LATIN
 from .extract import fmt_seen, scan
 from .ledger import default_ledger, index, list_gaps, read_ledger
 from .diff import diff, sync_linenumbers
@@ -73,6 +73,10 @@ def main() -> None:
     ap.add_argument("--no-latin", action="store_true")
     ap.add_argument("--min-kana", type=int, default=DEFAULT_MIN_KANA)
     ap.add_argument("--min-latin", type=int, default=DEFAULT_MIN_LATIN)
+    ap.add_argument("--morph", action="store_true",
+                    help="enable morphological analysis for kanji/hiragana terms (requires: pip install explain-lint[ja])")
+    ap.add_argument("--min-kanji", type=int, default=DEFAULT_MIN_KANJI,
+                    help="minimum length for kanji/hiragana terms (with --morph)")
     ap.add_argument("--lang", default="en", choices=["en", "ja"],
                     help="CLI output language (default: en)")
     args = ap.parse_args()
@@ -80,7 +84,9 @@ def main() -> None:
 
     ledger_path = args.ledger or default_ledger(args.inputs)
     kw = dict(use_kana=not args.no_kana, use_latin=not args.no_latin,
-              min_kana=args.min_kana, min_latin=args.min_latin)
+              use_morph=args.morph,
+              min_kana=args.min_kana, min_latin=args.min_latin,
+              min_kanji=args.min_kanji)
 
     if args.dump:
         first = scan(args.inputs, **kw)

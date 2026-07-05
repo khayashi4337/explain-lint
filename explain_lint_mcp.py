@@ -27,17 +27,19 @@ mcp = FastMCP("explain-lint")
 # 抽出デフォルトはコアから取得。CLIとMCPで対称に保つ（ISSUE-06）
 _MK = core.DEFAULT_MIN_KANA
 _ML = core.DEFAULT_MIN_LATIN
+_MJ = core.DEFAULT_MIN_KANJI
 
 
-def _extract_kw(use_kana, use_latin, min_kana, min_latin):
-    return dict(use_kana=use_kana, use_latin=use_latin,
-                min_kana=min_kana, min_latin=min_latin)
+def _extract_kw(use_kana, use_latin, use_morph, min_kana, min_latin, min_kanji):
+    return dict(use_kana=use_kana, use_latin=use_latin, use_morph=use_morph,
+                min_kana=min_kana, min_latin=min_latin, min_kanji=min_kanji)
 
 
 @mcp.tool()
 def lint_report(paths: list[str], ledger: str = "", use_kana: bool = True,
-                use_latin: bool = True, min_kana: int = _MK,
-                min_latin: int = _ML) -> dict:
+                use_latin: bool = True, use_morph: bool = False,
+                min_kana: int = _MK, min_latin: int = _ML,
+                min_kanji: int = _MJ) -> dict:
     """文章ファイルと台帳を比較し、変更点を報告する。
 
     これを最初に呼ぶ。判断が必要な用語を返す:
@@ -50,10 +52,11 @@ def lint_report(paths: list[str], ledger: str = "", use_kana: bool = True,
 
     paths: 読み順のMarkdown/テキストファイル。
     ledger: 台帳パス（デフォルト: <最初のパス>.terms.md）。
-    use_kana/use_latin/min_kana/min_latin: 抽出のチューニング（CLIと同じ）。
+    use_kana/use_latin/use_morph/min_kana/min_latin/min_kanji: 抽出のチューニング（CLIと同じ）。
+    use_morph が True の場合、形態素解析で漢字・ひらがな名詞を抽出する（要: pip install janome）。
     """
     ledger_path = ledger or core.default_ledger(paths)
-    first = core.scan(paths, **_extract_kw(use_kana, use_latin, min_kana, min_latin))
+    first = core.scan(paths, **_extract_kw(use_kana, use_latin, use_morph, min_kana, min_latin, min_kanji))
     _, rows = core.read_ledger(ledger_path)
     d = core.diff(first, core.index(rows))
     trim = lambda o: {"term": o["term"], "first_seen": o["first_seen"],
@@ -71,14 +74,16 @@ def lint_report(paths: list[str], ledger: str = "", use_kana: bool = True,
 @mcp.tool()
 def get_term_context(term: str, paths: list[str], window: int = 2,
                      use_kana: bool = True, use_latin: bool = True,
-                     min_kana: int = _MK, min_latin: int = _ML) -> dict:
+                     use_morph: bool = False,
+                     min_kana: int = _MK, min_latin: int = _ML,
+                     min_kanji: int = _MJ) -> dict:
     """指定用語の初出と周辺行を返す。判断材料として使う。
 
     lint_report の line_text だけでは初出で説明されているか判断できない場合に使う。
     `window` は前後に含める行数。用語が一度も出現しない場合は {found:false} を返す。
     """
     ctx = core.get_context(term, paths, window=window,
-                           **_extract_kw(use_kana, use_latin, min_kana, min_latin))
+                           **_extract_kw(use_kana, use_latin, use_morph, min_kana, min_latin, min_kanji))
     if ctx is None:
         return {"found": False, "term": term}
     return {"found": True, **ctx}
@@ -115,8 +120,9 @@ def list_gaps(ledger: str) -> dict:
 
 @mcp.tool()
 def sync_ledger(paths: list[str], ledger: str = "", use_kana: bool = True,
-                use_latin: bool = True, min_kana: int = _MK,
-                min_latin: int = _ML) -> dict:
+                use_latin: bool = True, use_morph: bool = False,
+                min_kana: int = _MK, min_latin: int = _ML,
+                min_kanji: int = _MJ) -> dict:
     """行がずれた用語（hash不変）の台帳行番号を書き換える。
 
     行番号がずれるだけの編集後に実行し、純粋なずれでは lint_report が黙り、
@@ -126,15 +132,17 @@ def sync_ledger(paths: list[str], ledger: str = "", use_kana: bool = True,
     if not os.path.exists(ledger_path):
         return {"updated": 0, "error": f"no ledger at {ledger_path}"}
     updated = core.sync_linenumbers(
-        paths, ledger_path, **_extract_kw(use_kana, use_latin, min_kana, min_latin))
+        paths, ledger_path, **_extract_kw(use_kana, use_latin, use_morph, min_kana, min_latin, min_kanji))
     return {"updated": updated, "ledger": ledger_path}
 
 
 @mcp.tool()
 def dump_terms(paths: list[str], use_kana: bool = True, use_latin: bool = True,
-               min_kana: int = _MK, min_latin: int = _ML) -> dict:
+               use_morph: bool = False,
+               min_kana: int = _MK, min_latin: int = _ML,
+               min_kanji: int = _MJ) -> dict:
     """全用語の初出を一覧（新規台帳のシード材料）。"""
-    first = core.scan(paths, **_extract_kw(use_kana, use_latin, min_kana, min_latin))
+    first = core.scan(paths, **_extract_kw(use_kana, use_latin, use_morph, min_kana, min_latin, min_kanji))
     items = sorted(first.items(), key=lambda kv: (kv[1]["file"], kv[1]["line"]))
     return {"count": len(first),
             "terms": [{"term": t, "first_seen": core.fmt_seen(o["file"], o["line"], o["heading"]),
